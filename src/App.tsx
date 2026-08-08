@@ -5,6 +5,7 @@ import {
   annualSalary,
   ART57_EXEMPT_M,
   bracketLabel,
+  defaultRaiseFromNow,
   decompose,
   formatClp,
   formatM,
@@ -16,37 +17,58 @@ import "./App.css";
 
 export default function App() {
   const [monthlyM, setMonthlyM] = useState(0);
-  const [enableRaise, setEnableRaise] = useState(false);
-  const [raiseM, setRaiseM] = useState(0);
-  const [raiseFrom, setRaiseFrom] = useState(1);
+  const [enableChange, setEnableChange] = useState(false);
+  const [changeM, setChangeM] = useState(0);
+  // Default: +2 months; in Nov/Dic → July (mid-year, retroactive this AT).
+  const [changeFrom, setChangeFrom] = useState(defaultRaiseFromNow);
+  const [enableBonus, setEnableBonus] = useState(false);
   const [bonusM, setBonusM] = useState(0);
   const [bonusMonth, setBonusMonth] = useState(1);
   const [sellFund, setSellFund] = useState(false);
+  /** Art. 108 → IGC progresivo; Art. 107 → impuesto único 10% (0% desde 2027). */
+  const [fundRegime, setFundRegime] = useState<"108" | "107">("108");
   const [fundGainM, setFundGainM] = useState(0);
   const [applyExempt, setApplyExempt] = useState(true);
 
-  const safeRaiseM = Math.max(raiseM, monthlyM);
+  const effectiveBonusM = enableBonus ? bonusM : 0;
 
   const result = useMemo(() => {
-    const raiseStart = enableRaise ? raiseFrom : 13;
+    const changeStart = enableChange ? changeFrom : 13;
     const salaryM = annualSalary(
       monthlyM,
-      safeRaiseM,
-      raiseStart,
-      bonusM,
+      changeM,
+      changeStart,
+      effectiveBonusM,
       bonusMonth,
     );
-    const exempt = applyExempt ? ART57_EXEMPT_M : 0;
-    const fundTaxableM = sellFund ? Math.max(0, fundGainM - exempt) : 0;
+    const exempt =
+      sellFund && fundRegime === "108" && applyExempt ? ART57_EXEMPT_M : 0;
+    const fundTaxableM =
+      sellFund && fundRegime === "108"
+        ? Math.max(0, fundGainM - exempt)
+        : 0;
     const totalM = salaryM + fundTaxableM;
     const taxNo = igc(salaryM);
-    const taxYes = igc(totalM);
+    const igcWithFund = igc(totalM);
+
+    // Art. 107: impuesto único 10% sobre la ganancia hasta el 31/12/2026;
+    // desde el 01/01/2027 el mayor valor no constituye renta (0%).
+    const art107Rate = 0.1;
+    const art107Tax =
+      sellFund && fundRegime === "107" ? fundGainM * art107Rate : 0;
+
+    const taxYes =
+      fundRegime === "107" ? taxNo + art107Tax : igcWithFund;
     const extra = taxYes - taxNo;
-    const nextPeso = marginalRate(totalM);
+    const nextPeso =
+      fundRegime === "107" && sellFund
+        ? art107Rate
+        : marginalRate(totalM);
     const nextPesoNo = marginalRate(salaryM);
     const blended =
       fundGainM > 0 && sellFund ? (extra / fundGainM) * 100 : 0;
-    const effYes = totalM > 0 ? (taxYes / totalM) * 100 : 0;
+    const globalBase = salaryM + (sellFund ? fundGainM : 0);
+    const effYes = globalBase > 0 ? (taxYes / globalBase) * 100 : 0;
     const effNo = salaryM > 0 ? (taxNo / salaryM) * 100 : 0;
     const rows = decompose(salaryM, fundTaxableM);
 
@@ -63,15 +85,18 @@ export default function App() {
       effYes,
       effNo,
       rows,
+      art107Tax,
+      fundRegime,
     };
   }, [
     monthlyM,
-    enableRaise,
-    safeRaiseM,
-    raiseFrom,
-    bonusM,
+    enableChange,
+    changeM,
+    changeFrom,
+    effectiveBonusM,
     bonusMonth,
     sellFund,
+    fundRegime,
     fundGainM,
     applyExempt,
   ]);
@@ -83,14 +108,14 @@ export default function App() {
           IGC <span>Explorer</span>
         </h1>
         <p className="lede">
-          Simula tu Impuesto Global Complementario ajustando sueldo, bono, alza
-          y ganancia de fondos. El impuesto es el área bajo la escalera de
-          tasas.
+          Simula tu Impuesto Global Complementario ajustando sueldo, bono,
+          cambios de renta y ganancia de fondos. El impuesto es el área bajo la
+          escalera de tasas.
         </p>
         <div className="meta">
           <span className="chip accent">Art. 52 LIR · AT 2026</span>
           <span className="chip">UTA $834.504</span>
-          <span className="chip">Montos como renta líquida imponible</span>
+          <span className="chip">Montos como renta imponible</span>
         </div>
       </header>
 
@@ -100,7 +125,7 @@ export default function App() {
             <h2>Ingresos</h2>
             <SliderRow
               id="monthly"
-              label="Sueldo mensual actual"
+              label="Sueldo imponible mensual actual"
               value={monthlyM}
               min={0}
               max={12}
@@ -112,60 +137,81 @@ export default function App() {
             <label className="check">
               <input
                 type="checkbox"
-                checked={enableRaise}
-                onChange={(e) => setEnableRaise(e.target.checked)}
+                checked={enableChange}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setEnableChange(on);
+                  // Start from current sueldo; user can slide to $0 if needed
+                  if (on && changeM === 0 && monthlyM > 0) setChangeM(monthlyM);
+                }}
               />
-              Aplicar alza de sueldo
+              Aplicar cambio de sueldo
             </label>
 
-            {enableRaise ? (
+            {enableChange ? (
               <>
                 <SliderRow
-                  id="raise"
-                  label="Sueldo tras alza"
-                  value={safeRaiseM}
-                  min={monthlyM}
+                  id="change"
+                  label="Sueldo imponible tras el cambio"
+                  value={changeM}
+                  min={0}
                   max={15}
                   step={0.1}
-                  display={`${formatClp(safeRaiseM * 1e6)}/mes`}
-                  onChange={setRaiseM}
+                  display={`${formatClp(changeM * 1e6)}/mes`}
+                  onChange={setChangeM}
                 />
+                <p className="hint">
+                  Puede ser mayor, menor o $0 (fin de relación laboral).
+                </p>
                 <SliderRow
-                  id="raiseFrom"
-                  label="Mes de alza"
-                  value={raiseFrom}
+                  id="changeFrom"
+                  label="Mes del cambio"
+                  value={changeFrom}
                   min={1}
                   max={12}
                   step={1}
-                  display={MONTHS[raiseFrom - 1]}
-                  onChange={setRaiseFrom}
+                  display={MONTHS[changeFrom - 1]}
+                  onChange={setChangeFrom}
                 />
               </>
             ) : null}
           </div>
 
           <div className="section">
-            <h2>Bono</h2>
-            <SliderRow
-              id="bonus"
-              label="Monto del bono"
-              value={bonusM}
-              min={0}
-              max={30}
-              step={0.5}
-              display={formatClp(bonusM * 1e6)}
-              onChange={setBonusM}
-            />
-            <SliderRow
-              id="bonusMonth"
-              label="Mes del bono"
-              value={bonusMonth}
-              min={1}
-              max={12}
-              step={1}
-              display={MONTHS[bonusMonth - 1]}
-              onChange={setBonusMonth}
-            />
+            <h2>Bono anual</h2>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={enableBonus}
+                onChange={(e) => setEnableBonus(e.target.checked)}
+              />
+              Incluir bono anual
+            </label>
+
+            {enableBonus ? (
+              <>
+                <SliderRow
+                  id="bonus"
+                  label="Monto bruto del bono"
+                  value={bonusM}
+                  min={0}
+                  max={30}
+                  step={0.5}
+                  display={formatClp(bonusM * 1e6)}
+                  onChange={setBonusM}
+                />
+                <SliderRow
+                  id="bonusMonth"
+                  label="Mes del bono"
+                  value={bonusMonth}
+                  min={1}
+                  max={12}
+                  step={1}
+                  display={MONTHS[bonusMonth - 1]}
+                  onChange={setBonusMonth}
+                />
+              </>
+            ) : null}
           </div>
 
           <div className="section">
@@ -176,11 +222,35 @@ export default function App() {
                 checked={sellFund}
                 onChange={(e) => setSellFund(e.target.checked)}
               />
-              Vender el fondo este año
+              Vender / rescatar el fondo este año
             </label>
 
             {sellFund ? (
               <>
+                <p className="hint">
+                  Elige el régimen del instrumento. Art. 108 LIR suma la ganancia
+                  al IGC. Art. 107 LIR (presencia bursátil / requisitos) aplica
+                  impuesto único del 10% hasta el 31/12/2026; desde el 01/01/2027
+                  el mayor valor no constituye renta.
+                </p>
+                <label className="check">
+                  <input
+                    type="radio"
+                    name="fundRegime"
+                    checked={fundRegime === "108"}
+                    onChange={() => setFundRegime("108")}
+                  />
+                  Art. 108 LIR (IGC progresivo)
+                </label>
+                <label className="check">
+                  <input
+                    type="radio"
+                    name="fundRegime"
+                    checked={fundRegime === "107"}
+                    onChange={() => setFundRegime("107")}
+                  />
+                  Art. 107 LIR (10% único · 0% desde 2027)
+                </label>
                 <SliderRow
                   id="fund"
                   label="Ganancia del fondo"
@@ -191,17 +261,27 @@ export default function App() {
                   display={formatClp(fundGainM * 1e6)}
                   onChange={setFundGainM}
                 />
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={applyExempt}
-                    onChange={(e) => setApplyExempt(e.target.checked)}
-                  />
-                  Exención Art. 57 (~$2.09M)
-                </label>
-                <p className="hint">
-                  Imponible fondo: {formatM(result.fundTaxableM)}
-                </p>
+                {fundRegime === "108" ? (
+                  <>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={applyExempt}
+                        onChange={(e) => setApplyExempt(e.target.checked)}
+                      />
+                      Exención Art. 57 (~$2.09M)
+                    </label>
+                    <p className="hint">
+                      Imponible fondo (Art. 108): {formatM(result.fundTaxableM)}
+                    </p>
+                  </>
+                ) : (
+                  <p className="hint">
+                    Impuesto único Art. 107 (tasa vigente 10%):{" "}
+                    {formatM(result.art107Tax)}. Desde el 01/01/2027: $0 si
+                    cumple los requisitos del artículo.
+                  </p>
+                )}
               </>
             ) : null}
           </div>
@@ -234,11 +314,13 @@ export default function App() {
               Tramo laboral {bracketLabel(result.salaryM)}
             </span>
             <span className="chip accent">
-              Marginal sin fondo {(result.nextPesoNo * 100).toFixed(1)}%
+              Marginal laboral {(result.nextPesoNo * 100).toFixed(1)}%
             </span>
             {sellFund ? (
               <span className="chip warn">
-                Marginal con fondo {(result.nextPeso * 100).toFixed(1)}%
+                {fundRegime === "107"
+                  ? `Art. 107 · ${(result.nextPeso * 100).toFixed(0)}% único`
+                  : `Marginal Art. 108 · ${(result.nextPeso * 100).toFixed(1)}%`}
               </span>
             ) : null}
             {sellFund && fundGainM > 0 ? (
@@ -257,19 +339,33 @@ export default function App() {
               <AreaChart salaryM={result.salaryM} totalM={result.totalM} />
             </div>
             <p className="chart-caption">
-              Claro = impuesto del sueldo/bono · Intenso = impuesto del fondo ·
-              Altura = tasa marginal
+              {fundRegime === "108"
+                ? "Claro = impuesto del sueldo/bono · Intenso = impuesto del fondo (Art. 108) · Altura = tasa marginal"
+                : "El gráfico muestra el IGC laboral. El fondo Art. 107 se grava aparte (10% único hasta 2026; 0% desde 2027)."}
             </p>
 
             {sellFund && fundGainM > 0 ? (
               <div className="callout warn">
                 <strong>Vender cuesta {formatM(result.extra)} extra</strong>
                 <p>
-                  De {formatM(fundGainM)} brutos quedarían{" "}
-                  {formatM(fundGainM - result.extra)} después del IGC adicional
-                  ({result.blended.toFixed(1)}% promedio sobre el fondo). El
-                  siguiente peso tributa al{" "}
-                  {(result.nextPeso * 100).toFixed(1)}%.
+                  {fundRegime === "108" ? (
+                    <>
+                      Régimen Art. 108 LIR: de {formatM(fundGainM)} brutos
+                      quedarían {formatM(fundGainM - result.extra)} después del
+                      IGC adicional ({result.blended.toFixed(1)}% promedio sobre
+                      el fondo). El siguiente peso tributa al{" "}
+                      {(result.nextPeso * 100).toFixed(1)}%.
+                    </>
+                  ) : (
+                    <>
+                      Régimen Art. 107 LIR: impuesto único de{" "}
+                      {formatM(result.art107Tax)} (10% sobre la ganancia), vigente
+                      hasta el 31/12/2026. Desde el 01/01/2027 el mayor valor no
+                      constituye renta si el instrumento cumple los requisitos.
+                      Quedarían {formatM(fundGainM - result.extra)} de la
+                      ganancia.
+                    </>
+                  )}
                 </p>
               </div>
             ) : (
@@ -323,7 +419,7 @@ export default function App() {
       <footer>
         Estimación educativa basada en la tabla Art. 52 LIR (AT 2026). No
         reemplaza asesoría tributaria ni la propuesta del SII. Los montos
-        mensuales se tratan como renta líquida imponible.
+        mensuales se tratan como renta imponible.
       </footer>
     </div>
   );

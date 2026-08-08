@@ -57,17 +57,30 @@ export function igc(incomeM: number): number {
 }
 
 export function marginalRate(incomeM: number): number {
+  if (incomeM <= 0) return BRACKETS[0].rate;
   for (const b of BRACKETS) {
-    if (incomeM > b.lo && incomeM <= b.hi) return b.rate;
+    if (incomeM <= b.hi) return b.rate;
   }
   return BRACKETS[BRACKETS.length - 1].rate;
 }
 
 export function bracketLabel(incomeM: number): string {
+  if (incomeM <= 0) return BRACKETS[0].label;
   for (const b of BRACKETS) {
-    if (incomeM > b.lo && incomeM <= b.hi) return b.label;
+    if (incomeM <= b.hi) return b.label;
   }
   return BRACKETS[BRACKETS.length - 1].label;
+}
+
+/**
+ * Default raise month for the current tax year.
+ * Usually +2 months from now. In Nov/Dic (would wrap past year-end),
+ * use July so the cambio is mid-year and applies retroactively to this AT.
+ */
+export function defaultRaiseFromNow(now = new Date()): number {
+  const currentMonth = now.getMonth() + 1; // 1-12
+  if (currentMonth >= 11) return 7; // Jul — mitad del año
+  return currentMonth + 2;
 }
 
 export function annualSalary(
