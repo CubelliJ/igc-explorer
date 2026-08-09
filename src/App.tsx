@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { AreaChart } from "./components/AreaChart";
+import { HeadingWithTip, InfoTip } from "./components/InfoTip";
 import { SliderRow } from "./components/SliderRow";
 import {
   annualSalary,
@@ -14,6 +15,21 @@ import {
   MONTHS,
 } from "./lib/igc";
 import "./App.css";
+
+const TIP_SALARY_CHANGE =
+  "Puede ser mayor, menor o $0 (fin de relación laboral). El cambio aplica desde el mes elegido hasta fin de año.";
+
+const TIP_FUND_REGIME =
+  "Art. 108 LIR suma la ganancia al IGC progresivo. Art. 107 LIR (presencia bursátil / requisitos) aplica impuesto único del 10% hasta el 31/12/2026; desde el 01/01/2027 el mayor valor no constituye renta.";
+
+const TIP_ART57 =
+  "Exención Art. 57 LIR (30 UTM) para rescate de fondos mutuos de trabajadores dependientes / pequeños contribuyentes. Es un tope de todo o nada: si la ganancia anual no supera 30 UTM, queda exenta; si la supera, tributa la totalidad (no solo el exceso). Solo aplica bajo régimen Art. 108.";
+
+const TIP_CHART_108 =
+  "Claro = impuesto del sueldo/bono. Intenso = impuesto del fondo (Art. 108). Altura del rectángulo = tasa marginal del tramo.";
+
+const TIP_CHART_107 =
+  "El gráfico muestra el IGC laboral. El fondo Art. 107 se grava aparte: 10% único hasta 2026; 0% desde 2027 si cumple los requisitos.";
 
 export default function App() {
   const [monthlyM, setMonthlyM] = useState(0);
@@ -41,11 +57,18 @@ export default function App() {
       effectiveBonusM,
       bonusMonth,
     );
-    const exempt =
-      sellFund && fundRegime === "108" && applyExempt ? ART57_EXEMPT_M : 0;
+    // Art. 57: cliff exemption — under 30 UTM → $0 taxable; over → full gain taxable.
+    const art57Applies =
+      sellFund &&
+      fundRegime === "108" &&
+      applyExempt &&
+      fundGainM > 0 &&
+      fundGainM <= ART57_EXEMPT_M;
     const fundTaxableM =
       sellFund && fundRegime === "108"
-        ? Math.max(0, fundGainM - exempt)
+        ? art57Applies
+          ? 0
+          : fundGainM
         : 0;
     const totalM = salaryM + fundTaxableM;
     const taxNo = igc(salaryM);
@@ -115,7 +138,10 @@ export default function App() {
         <div className="meta">
           <span className="chip accent">Art. 52 LIR · AT 2026</span>
           <span className="chip">UTA $834.504</span>
-          <span className="chip">Montos como renta imponible</span>
+          <span className="chip">
+            Renta imponible
+            <InfoTip text="Los montos se tratan como renta imponible (base del IUSC / IGC), no como líquido a recibir." />
+          </span>
         </div>
       </header>
 
@@ -153,6 +179,7 @@ export default function App() {
                 <SliderRow
                   id="change"
                   label="Sueldo imponible tras el cambio"
+                  tip={TIP_SALARY_CHANGE}
                   value={changeM}
                   min={0}
                   max={15}
@@ -160,9 +187,6 @@ export default function App() {
                   display={`${formatClp(changeM * 1e6)}/mes`}
                   onChange={setChangeM}
                 />
-                <p className="hint">
-                  Puede ser mayor, menor o $0 (fin de relación laboral).
-                </p>
                 <SliderRow
                   id="changeFrom"
                   label="Mes del cambio"
@@ -215,7 +239,9 @@ export default function App() {
           </div>
 
           <div className="section">
-            <h2>Fondo</h2>
+            <h2>
+              <HeadingWithTip tip={TIP_FUND_REGIME}>Fondo</HeadingWithTip>
+            </h2>
             <label className="check">
               <input
                 type="checkbox"
@@ -227,30 +253,30 @@ export default function App() {
 
             {sellFund ? (
               <>
-                <p className="hint">
-                  Elige el régimen del instrumento. Art. 108 LIR suma la ganancia
-                  al IGC. Art. 107 LIR (presencia bursátil / requisitos) aplica
-                  impuesto único del 10% hasta el 31/12/2026; desde el 01/01/2027
-                  el mayor valor no constituye renta.
-                </p>
-                <label className="check">
-                  <input
-                    type="radio"
-                    name="fundRegime"
-                    checked={fundRegime === "108"}
-                    onChange={() => setFundRegime("108")}
-                  />
-                  Art. 108 LIR (IGC progresivo)
-                </label>
-                <label className="check">
-                  <input
-                    type="radio"
-                    name="fundRegime"
-                    checked={fundRegime === "107"}
-                    onChange={() => setFundRegime("107")}
-                  />
-                  Art. 107 LIR (10% único · 0% desde 2027)
-                </label>
+                <div className="check-with-tip">
+                  <label className="check">
+                    <input
+                      type="radio"
+                      name="fundRegime"
+                      checked={fundRegime === "108"}
+                      onChange={() => setFundRegime("108")}
+                    />
+                    Art. 108 LIR
+                  </label>
+                  <InfoTip text="Suma la ganancia a la base del IGC progresivo (Art. 52)." />
+                </div>
+                <div className="check-with-tip">
+                  <label className="check">
+                    <input
+                      type="radio"
+                      name="fundRegime"
+                      checked={fundRegime === "107"}
+                      onChange={() => setFundRegime("107")}
+                    />
+                    Art. 107 LIR
+                  </label>
+                  <InfoTip text="Impuesto único 10% sobre la ganancia hasta el 31/12/2026. Desde el 01/01/2027 el mayor valor no constituye renta si cumple presencia bursátil / requisitos." />
+                </div>
                 <SliderRow
                   id="fund"
                   label="Ganancia del fondo"
@@ -263,23 +289,27 @@ export default function App() {
                 />
                 {fundRegime === "108" ? (
                   <>
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={applyExempt}
-                        onChange={(e) => setApplyExempt(e.target.checked)}
-                      />
-                      Exención Art. 57 (~$2.09M)
-                    </label>
+                    <div className="check-with-tip">
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={applyExempt}
+                          onChange={(e) => setApplyExempt(e.target.checked)}
+                        />
+                        Exención Art. 57
+                      </label>
+                      <InfoTip text={TIP_ART57} />
+                    </div>
                     <p className="hint">
-                      Imponible fondo (Art. 108): {formatM(result.fundTaxableM)}
+                      {result.fundTaxableM === 0 && fundGainM > 0
+                        ? `Exento Art. 57 (≤ ${formatM(ART57_EXEMPT_M)})`
+                        : `Imponible: ${formatM(result.fundTaxableM)}`}
                     </p>
                   </>
                 ) : (
                   <p className="hint">
-                    Impuesto único Art. 107 (tasa vigente 10%):{" "}
-                    {formatM(result.art107Tax)}. Desde el 01/01/2027: $0 si
-                    cumple los requisitos del artículo.
+                    Impuesto único: {formatM(result.art107Tax)}
+                    <InfoTip text="Tasa vigente 10% sobre la ganancia. Desde el 01/01/2027: $0 si el instrumento cumple Art. 107." />
                   </p>
                 )}
               </>
@@ -334,48 +364,39 @@ export default function App() {
           </div>
 
           <div className="panel">
-            <h2>Área bajo la curva</h2>
+            <div className="panel-title">
+              <h2>Área bajo la curva</h2>
+              <InfoTip
+                text={fundRegime === "108" ? TIP_CHART_108 : TIP_CHART_107}
+              />
+            </div>
             <div className="chart-wrap">
               <AreaChart salaryM={result.salaryM} totalM={result.totalM} />
             </div>
-            <p className="chart-caption">
-              {fundRegime === "108"
-                ? "Claro = impuesto del sueldo/bono · Intenso = impuesto del fondo (Art. 108) · Altura = tasa marginal"
-                : "El gráfico muestra el IGC laboral. El fondo Art. 107 se grava aparte (10% único hasta 2026; 0% desde 2027)."}
-            </p>
 
             {sellFund && fundGainM > 0 ? (
               <div className="callout warn">
-                <strong>Vender cuesta {formatM(result.extra)} extra</strong>
-                <p>
-                  {fundRegime === "108" ? (
-                    <>
-                      Régimen Art. 108 LIR: de {formatM(fundGainM)} brutos
-                      quedarían {formatM(fundGainM - result.extra)} después del
-                      IGC adicional ({result.blended.toFixed(1)}% promedio sobre
-                      el fondo). El siguiente peso tributa al{" "}
-                      {(result.nextPeso * 100).toFixed(1)}%.
-                    </>
-                  ) : (
-                    <>
-                      Régimen Art. 107 LIR: impuesto único de{" "}
-                      {formatM(result.art107Tax)} (10% sobre la ganancia), vigente
-                      hasta el 31/12/2026. Desde el 01/01/2027 el mayor valor no
-                      constituye renta si el instrumento cumple los requisitos.
-                      Quedarían {formatM(fundGainM - result.extra)} de la
-                      ganancia.
-                    </>
-                  )}
-                </p>
+                <div className="callout-head">
+                  <strong>Vender cuesta {formatM(result.extra)} extra</strong>
+                  <InfoTip
+                    text={
+                      fundRegime === "108"
+                        ? `Art. 108: de ${formatM(fundGainM)} brutos quedarían ${formatM(fundGainM - result.extra)} después del IGC adicional (${result.blended.toFixed(1)}% promedio). Siguiente peso al ${(result.nextPeso * 100).toFixed(1)}%.`
+                        : `Art. 107: impuesto único ${formatM(result.art107Tax)} (10% vigente hasta 31/12/2026). Desde 01/01/2027 no constituye renta si cumple requisitos. Quedarían ${formatM(fundGainM - result.extra)}.`
+                    }
+                  />
+                </div>
               </div>
             ) : (
               <div className="callout info">
-                <strong>Sin venta de fondo</strong>
-                <p>
-                  IGC laboral {formatM(result.taxNo)} · efectiva{" "}
-                  {result.effNo.toFixed(1)}% · siguiente peso al{" "}
-                  {(result.nextPesoNo * 100).toFixed(1)}%.
-                </p>
+                <div className="callout-head">
+                  <strong>
+                    IGC laboral {formatM(result.taxNo)}
+                  </strong>
+                  <InfoTip
+                    text={`Efectiva ${result.effNo.toFixed(1)}%. Siguiente peso al ${(result.nextPesoNo * 100).toFixed(1)}%.`}
+                  />
+                </div>
               </div>
             )}
           </div>

@@ -1,3 +1,5 @@
+import { InfoTip } from "./InfoTip";
+
 type Props = {
   id: string;
   label: string;
@@ -6,6 +8,7 @@ type Props = {
   max: number;
   step: number;
   display: string;
+  tip?: string;
   disabled?: boolean;
   onChange: (value: number) => void;
 };
@@ -18,13 +21,17 @@ export function SliderRow({
   max,
   step,
   display,
+  tip,
   disabled,
   onChange,
 }: Props) {
   return (
     <div className="slider">
       <div className="slider-head">
-        <label htmlFor={id}>{label}</label>
+        <label htmlFor={id} className="slider-label">
+          {label}
+          {tip ? <InfoTip text={tip} /> : null}
+        </label>
         <output htmlFor={id}>{display}</output>
       </div>
       <input
