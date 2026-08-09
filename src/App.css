@@ -248,6 +248,28 @@
       margin: -0.25rem 0 0.5rem;
     }
 
+    .hint.cert-help {
+      margin: 0.35rem 0 0;
+      line-height: 1.45;
+    }
+
+    .hint a,
+    footer a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .hint a:hover,
+    footer a:hover {
+      filter: brightness(0.92);
+    }
+
+    .hint em {
+      font-style: normal;
+      color: var(--ink-soft);
+    }
+
     .slider-label {
       display: inline-flex;
       align-items: center;
@@ -504,3 +526,184 @@
     }
 
     .hidden { display: none !important; }
+
+    .app-nav {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(12px);
+      background: rgba(243, 246, 248, 0.78);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .app-nav-inner {
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+      display: flex;
+      gap: 0.35rem;
+      padding: 0.55rem 0;
+    }
+
+    .app-nav button {
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--ink-soft);
+      font-family: var(--font-ui);
+      font-size: 0.88rem;
+      font-weight: 500;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .app-nav button:hover {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    .app-nav button.active {
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-color: transparent;
+    }
+
+    .file-drop {
+      display: grid;
+      gap: 0.2rem;
+      padding: 1rem;
+      border: 1px dashed rgba(15, 110, 106, 0.35);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.45);
+      cursor: pointer;
+      margin-bottom: 0.75rem;
+    }
+
+    .file-drop input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    .file-drop-title {
+      font-size: 0.95rem;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .file-drop-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      word-break: break-all;
+    }
+
+    .field {
+      display: grid;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+    }
+
+    .field select,
+    .field input[type="text"] {
+      width: 100%;
+      padding: 0.55rem 0.65rem;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--ink);
+      font-family: var(--font-ui);
+      font-size: 0.9rem;
+    }
+
+    .field input[type="text"] {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    .primary-btn {
+      width: 100%;
+      margin-top: 0.35rem;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #f7fbfb;
+      font-family: var(--font-ui);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    .primary-btn:hover:not(:disabled) {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .method-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 800px) {
+      .method-grid { grid-template-columns: 1fr; }
+    }
+
+    .method-card.recommended {
+      border-color: rgba(15, 110, 106, 0.35);
+      box-shadow: 0 0 0 1px rgba(15, 110, 106, 0.08);
+    }
+
+    .method-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .method-card .stats {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .takes {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .takes ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .takes li {
+      display: grid;
+      grid-template-columns: 6.2rem 1fr auto;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+    }
+
+    .takes-inv {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .takes .mono {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }

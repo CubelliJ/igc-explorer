@@ -1,8 +1,8 @@
 # IGC Explorer
 
-Simulador interactivo del **Impuesto Global Complementario** (Chile, Art. 52 LIR · AT 2026).
+Simulador interactivo del **Impuesto Global Complementario** (Chile, Art. 52 LIR · AT 2026) y **Migrador 107** (rescate Art. 108 → 107 sin subir de tramo).
 
-Ajusta sueldo, bono, alza y ganancia de fondos; el impuesto se muestra como el área bajo la escalera de tasas marginales.
+En IGC Explorer ajustas sueldo, bono, alza y ganancia de fondos; el impuesto se muestra como el área bajo la escalera de tasas marginales. En Migrador 107 subes el certificado CSV de Fintual y comparas FIFO/LIFO bajo un tope de ganancia.
 
 ## Desarrollo local
 

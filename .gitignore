@@ -26,3 +26,7 @@ dist-ssr
 __pycache__/
 *.pyc
 .DS_Store
+
+# Sensitive brokerage / tax data — never commit
+certificado*.csv
+**/certificado*.csv
