@@ -26,10 +26,10 @@ const TIP_ART57 =
   "Exención Art. 57 LIR (30 UTM) para rescate de fondos mutuos de trabajadores dependientes / pequeños contribuyentes. Es un tope de todo o nada: si la ganancia anual no supera 30 UTM, queda exenta; si la supera, tributa la totalidad (no solo el exceso). Solo aplica bajo régimen Art. 108.";
 
 const TIP_CHART_108 =
-  "Claro = impuesto del sueldo/bono. Intenso = impuesto del fondo (Art. 108). Altura del rectángulo = tasa marginal del tramo.";
+  "Escalera negra = tasa marginal. Curva ámbar = tasa efectiva (IGC ÷ renta). Claro = impuesto laboral; intenso = impuesto del fondo (Art. 108). El área bajo la escalera es el impuesto.";
 
 const TIP_CHART_107 =
-  "El gráfico muestra el IGC laboral. El fondo Art. 107 se grava aparte: 10% único hasta 2026; 0% desde 2027 si cumple los requisitos.";
+  "Escalera = marginal IGC; curva = efectiva sobre la base IGC. El fondo Art. 107 se grava aparte (10% único hasta 2026) y no entra al área del gráfico.";
 
 export function IgcExplorer() {
   const [monthlyM, setMonthlyM] = useState(0);
@@ -364,11 +364,23 @@ export function IgcExplorer() {
           </div>
 
           <div className="panel">
-            <div className="panel-title">
-              <h2>Área bajo la curva</h2>
-              <InfoTip
-                text={fundRegime === "108" ? TIP_CHART_108 : TIP_CHART_107}
-              />
+            <div className="panel-title chart-panel-title">
+              <div className="panel-title">
+                <h2>Marginal y efectiva</h2>
+                <InfoTip
+                  text={fundRegime === "108" ? TIP_CHART_108 : TIP_CHART_107}
+                />
+              </div>
+              <div className="chart-legend" aria-hidden="true">
+                <span className="chart-legend-item">
+                  <span className="chart-legend-line marginal" />
+                  marginal
+                </span>
+                <span className="chart-legend-item efectiva">
+                  <span className="chart-legend-line efectiva" />
+                  efectiva
+                </span>
+              </div>
             </div>
             <div className="chart-wrap">
               <AreaChart salaryM={result.salaryM} totalM={result.totalM} />

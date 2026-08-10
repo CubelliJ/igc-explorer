@@ -1,9 +1,14 @@
-import { BRACKETS, BRACKET_COLORS } from "../lib/igc";
+import { BRACKETS, BRACKET_COLORS, igc } from "../lib/igc";
 
 type Props = {
   salaryM: number;
   totalM: number;
 };
+
+function effectiveRate(incomeM: number): number {
+  if (incomeM <= 1e-9) return 0;
+  return igc(incomeM) / incomeM;
+}
 
 export function AreaChart({ salaryM, totalM }: Props) {
   const width = 720;
@@ -27,16 +32,65 @@ export function AreaChart({ salaryM, totalM }: Props) {
     step.push(`L ${x1} ${y}`);
   }
 
+  // Dense samples of average/effective rate = IGC(x) / x
+  const effPts: Array<{ x: number; y: number }> = [];
+  const stepX = Math.max(0.25, xMax / 160);
+  for (let x = stepX; x <= xMax + 1e-9; x += stepX) {
+    effPts.push({ x, y: effectiveRate(x) });
+  }
+  // Exact points at bracket edges for clean corners in the derivative sense
+  for (const b of BRACKETS) {
+    if (b.lo > 0 && b.lo <= xMax) {
+      effPts.push({ x: b.lo, y: effectiveRate(b.lo) });
+    }
+  }
+  effPts.sort((a, b) => a.x - b.x);
+  const effPath = effPts
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${xScale(p.x)} ${yScale(p.y)}`)
+    .join(" ");
+
   const yTicks = [0, 0.04, 0.08, 0.135, 0.23, 0.304, 0.35];
   const xTicks: number[] = [];
   for (let t = 0; t <= xMax; t += xMax > 120 ? 20 : 10) xTicks.push(t);
+
+  const showFund = totalM > salaryM + 0.05;
+  const effSalary = salaryM > 0 ? effectiveRate(salaryM) : 0;
+  const effTotal = totalM > 0 ? effectiveRate(totalM) : 0;
+
+  const xSal = xScale(salaryM);
+  const xTot = xScale(totalM);
+  const crowded = showFund && xTot - xSal < 88;
+  const salAnchor = crowded ? "end" : "start";
+  const salX = crowded
+    ? Math.max(pad.left + 2, xSal - 5)
+    : Math.min(xSal + 5, width - pad.right - 4);
+  const totCrowdedRight = xTot > width - pad.right - 56;
+  const totAnchor = totCrowdedRight && !crowded ? "end" : "start";
+  const totX = totCrowdedRight && !crowded
+    ? Math.max(pad.left + 2, xTot - 5)
+    : Math.min(xTot + 5, width - pad.right - 4);
+
+  const markDot = (incomeM: number, color: string) => {
+    if (incomeM <= 0) return null;
+    return (
+      <circle
+        key={`dot-${color}-${incomeM}`}
+        cx={xScale(incomeM)}
+        cy={yScale(effectiveRate(incomeM))}
+        r={3.5}
+        fill={color}
+        stroke="#fff"
+        strokeWidth={1.25}
+      />
+    );
+  };
 
   return (
     <svg
       width="100%"
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label="Área bajo la curva del IGC"
+      aria-label="Tasa marginal y tasa efectiva del IGC"
     >
       {yTicks.map((t) => (
         <g key={`y-${t}`}>
@@ -110,6 +164,15 @@ export function AreaChart({ salaryM, totalM }: Props) {
       })}
 
       <path d={step.join(" ")} fill="none" stroke="#0e1a24" strokeWidth={1.5} />
+      <path
+        d={effPath}
+        fill="none"
+        stroke="#b45309"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
       <line
         x1={xScale(salaryM)}
         x2={xScale(salaryM)}
@@ -126,24 +189,57 @@ export function AreaChart({ salaryM, totalM }: Props) {
         stroke="#0f6e6a"
         strokeWidth={1.5}
       />
-      <text
-        x={xScale(salaryM) + 4}
-        y={pad.top + 12}
-        fill="#3a4a56"
-        fontSize={10}
-        fontFamily="Outfit, sans-serif"
-      >
-        laboral
-      </text>
-      <text
-        x={Math.min(xScale(totalM) + 4, width - pad.right - 40)}
-        y={pad.top + 26}
-        fill="#0f6e6a"
-        fontSize={10}
-        fontFamily="Outfit, sans-serif"
-      >
-        +fondo
-      </text>
+      {salaryM > 0 ? (
+        <g>
+          <text
+            x={salX}
+            y={pad.top + 12}
+            textAnchor={salAnchor}
+            fill="#3a4a56"
+            fontSize={10}
+            fontFamily="Outfit, sans-serif"
+          >
+            laboral
+          </text>
+          <text
+            x={salX}
+            y={pad.top + 24}
+            textAnchor={salAnchor}
+            fill="#b45309"
+            fontSize={10}
+            fontFamily="IBM Plex Mono, monospace"
+          >
+            ef. {(effSalary * 100).toFixed(1)}%
+          </text>
+        </g>
+      ) : null}
+      {showFund ? (
+        <g>
+          <text
+            x={totX}
+            y={pad.top + 12}
+            textAnchor={totAnchor}
+            fill="#0f6e6a"
+            fontSize={10}
+            fontFamily="Outfit, sans-serif"
+          >
+            +fondo
+          </text>
+          <text
+            x={totX}
+            y={pad.top + 24}
+            textAnchor={totAnchor}
+            fill="#9a3412"
+            fontSize={10}
+            fontFamily="IBM Plex Mono, monospace"
+          >
+            ef. {(effTotal * 100).toFixed(1)}%
+          </text>
+        </g>
+      ) : null}
+
+      {markDot(salaryM, "#b45309")}
+      {showFund ? markDot(totalM, "#9a3412") : null}
     </svg>
   );
 }
