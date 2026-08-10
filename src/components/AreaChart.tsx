@@ -13,7 +13,8 @@ function effectiveRate(incomeM: number): number {
 export function AreaChart({ salaryM, totalM }: Props) {
   const width = 720;
   const height = 300;
-  const pad = { top: 28, right: 20, bottom: 40, left: 48 };
+  // Extra right pad so "+fondo / ef." labels can sit to the right of late markers.
+  const pad = { top: 28, right: 56, bottom: 40, left: 48 };
   const xMax = Math.max(80, Math.ceil((totalM + 5) / 10) * 10);
   const yMax = 0.4;
   const plotW = width - pad.left - pad.right;
@@ -59,16 +60,14 @@ export function AreaChart({ salaryM, totalM }: Props) {
 
   const xSal = xScale(salaryM);
   const xTot = xScale(totalM);
-  const crowded = showFund && xTot - xSal < 88;
-  const salAnchor = crowded ? "end" : "start";
-  const salX = crowded
+  // With both markers: laboral always left of its line, +fondo always right —
+  // never flip +fondo left (that collided with laboral near the right edge).
+  const salAnchor = showFund ? "end" : "start";
+  const salX = showFund
     ? Math.max(pad.left + 2, xSal - 5)
     : Math.min(xSal + 5, width - pad.right - 4);
-  const totCrowdedRight = xTot > width - pad.right - 56;
-  const totAnchor = totCrowdedRight && !crowded ? "end" : "start";
-  const totX = totCrowdedRight && !crowded
-    ? Math.max(pad.left + 2, xTot - 5)
-    : Math.min(xTot + 5, width - pad.right - 4);
+  const totAnchor = "start" as const;
+  const totX = Math.min(xTot + 5, width - pad.right - 4);
 
   const markDot = (incomeM: number, color: string) => {
     if (incomeM <= 0) return null;
